@@ -87,7 +87,7 @@ LSD-TFFormer-LLIE/
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/LSD-TFFormer-LLIE.git
+git clone https://github.com/yourusername/LSD-TFFormer-LLIE_V1.git
 cd LSD-TFFormer-LLIE
 ```
 
