@@ -88,7 +88,7 @@ LSD-TFFormer-LLIE/
 
 ```bash
 git clone https://github.com/yourusername/LSD-TFFormer-LLIE_V1.git
-cd LSD-TFFormer-LLIE
+cd LSD-TFFormer-LLIE_V1
 ```
 
 ### 2️⃣ Install PyTorch (CUDA Recommended)
