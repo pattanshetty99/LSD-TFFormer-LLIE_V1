@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from models.layers import DropPath, LayerScale
 
 def window_partition(x, window_size):
@@ -70,35 +71,63 @@ class SwinBlock(nn.Module):
         )
         self.ls2 = LayerScale(dim)
 
+    import torch.nn.functional as F
+
     def forward(self, x):
         B, H, W, C = x.shape
-
         shortcut = x
+
+        # LayerNorm
         x = self.norm1(x)
 
-        if self.shift_size > 0:
-            x = torch.roll(x,
-                           shifts=(-self.shift_size,
-                                   -self.shift_size),
-                           dims=(1,2))
+        # 🔥 PAD TO MULTIPLE OF WINDOW SIZE
+        pad_h = (self.window_size - H % self.window_size) % self.window_size
+        pad_w = (self.window_size - W % self.window_size) % self.window_size
 
+        if pad_h > 0 or pad_w > 0:
+            x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
+        
+        Hp, Wp = x.shape[1], x.shape[2]
+
+        # Shift
+        if self.shift_size > 0:
+            x = torch.roll(
+                x,
+                shifts=(-self.shift_size, -self.shift_size),
+                dims=(1, 2)
+            )
+
+        # Window partition
         x_windows = window_partition(x, self.window_size)
         attn_windows = self.attn(x_windows)
 
-        x = window_reverse(attn_windows,
-                           self.window_size,
-                           H, W)
+        # Reverse windows
+        x = window_reverse(
+            attn_windows,
+            self.window_size,
+            Hp, Wp
+        )
 
+        # Reverse shift
         if self.shift_size > 0:
-            x = torch.roll(x,
-                           shifts=(self.shift_size,
-                                   self.shift_size),
-                           dims=(1,2))
+            x = torch.roll(
+                x,
+                shifts=(self.shift_size, self.shift_size),
+                dims=(1, 2)
+            )
 
+        # 🔥 REMOVE PAD
+        if pad_h > 0 or pad_w > 0:
+            x = x[:, :H, :W, :]
+
+        # Residual 1
         x = shortcut + self.drop_path(self.ls1(x))
 
-        x = x + self.drop_path(self.ls2(
-            self.mlp(self.norm2(x))
-        ))
+        # Residual 2
+        x = x + self.drop_path(
+            self.ls2(
+                self.mlp(self.norm2(x))
+            )
+        )
 
         return x
